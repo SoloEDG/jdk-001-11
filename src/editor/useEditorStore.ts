@@ -18,16 +18,21 @@ import { createAnimationPlayer } from './animationPlayer'
 import {
   addFrameToProject,
   addLayerToActiveFrame,
+  clampIndex,
   deleteFrameAt,
   deleteLayerAt,
+  normalizeProjectIndexes,
   toggleLayerVisibility,
+  withActiveFrame,
   withActiveLayer,
   withCanvasSize,
   withFrameLayers,
 } from './projectCommands'
 import { applyToolAt, cancelLineTool, type LinePending } from './toolController'
 
-const projects = ref<PixelProject[]>(ensureDefaultProject(loadProjects()))
+const projects = ref<PixelProject[]>(
+  ensureDefaultProject(loadProjects()).map(normalizeProjectIndexes),
+)
 const prefs = reactive(loadPreferences())
 
 const linePending = ref<LinePending | null>(null)
@@ -79,6 +84,12 @@ const activeFrame = computed(() => {
   return p.frames[idx] ?? null
 })
 
+const activeLayerIndex = computed(() => {
+  const p = activeProject.value
+  const frame = activeFrame.value
+  return clampIndex(p?.activeLayerIndex ?? 0, frame?.layers.length ?? 0)
+})
+
 const compositePixels = computed(() => {
   const frame = activeFrame.value
   if (!frame) return []
@@ -126,7 +137,7 @@ function onCanvasPointer(x: number, y: number) {
     {
       size: p.canvasSize,
       layers: frame.layers,
-      activeLayerIndex: p.activeLayerIndex,
+      activeLayerIndex: activeLayerIndex.value,
       activeColor: prefs.activeColor,
       tool: prefs.activeTool,
       linePending: linePending.value,
@@ -167,7 +178,7 @@ function addLayer() {
 
 function setActiveFrame(index: number) {
   previewFrameIndex.value = null
-  mutateProject((p) => ({ ...p, activeFrameIndex: index }))
+  mutateProject((p) => withActiveFrame(p, index))
   linePending.value = cancelLineTool()
 }
 
@@ -265,6 +276,7 @@ function buildEditorStore() {
     activeProject,
     canvasSize,
     activeFrame,
+    activeLayerIndex,
     compositePixels,
     linePending,
     isPlaying,

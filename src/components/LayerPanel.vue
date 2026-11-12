@@ -17,7 +17,7 @@ const canAdd = computed(() => layers.value.length < MAX_LAYERS)
         v-for="(layer, index) in layers"
         :key="layer.id"
         class="layer-item"
-        :class="{ active: store.activeProject?.activeLayerIndex === index }"
+        :class="{ active: store.activeLayerIndex === index }"
       >
         <button type="button" class="name" @click="store.setActiveLayer(index)">
           {{ layer.name }}

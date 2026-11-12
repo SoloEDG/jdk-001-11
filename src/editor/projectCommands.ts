@@ -17,8 +17,41 @@ export function withCanvasSize(project: PixelProject, size: CanvasSize): PixelPr
   }
 }
 
+export function clampIndex(index: number, count: number): number {
+  if (count <= 0) return 0
+  const normalized = Number.isFinite(index) ? Math.trunc(index) : 0
+  return Math.min(Math.max(normalized, 0), count - 1)
+}
+
 export function withActiveLayer(project: PixelProject, index: number): PixelProject {
-  return { ...project, activeLayerIndex: index }
+  const frame = project.frames[project.activeFrameIndex]
+  return {
+    ...project,
+    activeLayerIndex: clampIndex(index, frame?.layers.length ?? 0),
+  }
+}
+
+export function withActiveFrame(project: PixelProject, frameIndex: number): PixelProject {
+  const frame = project.frames[frameIndex]
+  if (!frame) return project
+  return {
+    ...project,
+    activeFrameIndex: frameIndex,
+    activeLayerIndex: clampIndex(project.activeLayerIndex, frame.layers.length),
+  }
+}
+
+export function normalizeProjectIndexes(project: PixelProject): PixelProject {
+  if (project.frames.length === 0) {
+    return { ...project, activeFrameIndex: 0, activeLayerIndex: 0 }
+  }
+  const activeFrameIndex = clampIndex(project.activeFrameIndex, project.frames.length)
+  const frame = project.frames[activeFrameIndex]
+  return {
+    ...project,
+    activeFrameIndex,
+    activeLayerIndex: clampIndex(project.activeLayerIndex, frame?.layers.length ?? 0),
+  }
 }
 
 export function withFrameLayers(
@@ -56,7 +89,7 @@ export function deleteLayerAt(project: PixelProject, layerIndex: number): PixelP
   const frame = project.frames[project.activeFrameIndex]
   if (!frame || frame.layers.length <= 1) return project
   const layers = frame.layers.filter((_, i) => i !== layerIndex)
-  const activeLayerIndex = Math.min(project.activeLayerIndex, layers.length - 1)
+  const activeLayerIndex = clampIndex(project.activeLayerIndex, layers.length)
   return {
     ...withFrameLayers(project, project.activeFrameIndex, layers),
     activeLayerIndex,
@@ -66,7 +99,7 @@ export function deleteLayerAt(project: PixelProject, layerIndex: number): PixelP
 export function addFrameToProject(project: PixelProject): PixelProject | null {
   if (!canAddFrame(project.frames)) return null
   const frames = [...project.frames, createFrame(project.canvasSize, `帧 ${project.frames.length + 1}`)]
-  return { ...project, frames, activeFrameIndex: frames.length - 1 }
+  return withActiveFrame({ ...project, frames }, frames.length - 1)
 }
 
 export function deleteFrameAt(project: PixelProject, index: number): PixelProject {
@@ -78,5 +111,5 @@ export function deleteFrameAt(project: PixelProject, index: number): PixelProjec
   } else if (activeFrameIndex > index) {
     activeFrameIndex -= 1
   }
-  return { ...project, frames, activeFrameIndex }
+  return withActiveFrame({ ...project, frames }, activeFrameIndex)
 }
